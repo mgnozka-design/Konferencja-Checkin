@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>Check-in konferencji</title>
+
+  <script src="https://unpkg.com/html5-qrcode"></script>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f4f4;
+      margin: 0;
+      padding: 20px;
+    }
+
+    .box {
+      max-width: 500px;
+      margin: auto;
+      background: white;
+      padding: 25px;
+      border-radius: 20px;
+      box-sizing: border-box;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 10px;
+    }
+
+    #reader {
+      margin-top: 20px;
+      width: 100%;
+    }
+
+    button {
+      width: 100%;
+      padding: 16px;
+      border: none;
+      border-radius: 12px;
+      background: #111;
+      color: white;
+      font-size: 18px;
+      margin-top: 15px;
+      cursor: pointer;
+    }
+
+    button:disabled {
+      opacity: 0.5;
+    }
+
+    #result {
+      margin-top: 20px;
+      padding: 20px;
+      border-radius: 15px;
+      text-align: center;
+      font-size: 20px;
+      line-height: 1.5;
+    }
+
+    .success {
+      background: #d9f7df;
+      color: #176b2c;
+    }
+
+    .error {
+      background: #ffdede;
+      color: #9b0000;
+    }
+
+    .warning {
+      background: #fff0c7;
+      color: #8a5a00;
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="box">
+
+  <h1>🎟️ CHECK-IN</h1>
+
+  <p style="text-align:center;">
+    Skanowanie biletu uczestnika
+  </p>
+
+  <div id="reader"></div>
+
+  <button id="startButton" onclick="startScanner()">
+    📷 URUCHOM SKANER
+  </button>
+
+  <div id="result"></div>
+
+</div>
+
+<script>
+
+let scanner = null;
+let processing = false;
+
+function startScanner() {
+
+  if (scanner) return;
+
+  const button = document.getElementById("startButton");
+
+  button.disabled = true;
+  button.innerText = "📷 URUCHAMIAM APARAT...";
+
+  scanner = new Html5Qrcode("reader");
+
+  scanner.start(
+    { facingMode: "environment" },
+    {
+      fps: 10,
+      qrbox: 250
+    },
+
+    function(decodedText) {
+
+      if (processing) return;
+
+      processing = true;
+
+      checkTicket(decodedText);
+    }
+  )
+
+  .then(function() {
+
+    button.innerText = "📷 SKANER DZIAŁA";
+
+  })
+
+  .catch(function(error) {
+
+    scanner = null;
+
+    button.disabled = false;
+    button.innerText = "📷 URUCHOM SKANER";
+
+    show(
+      "error",
+      "❌ Nie udało się uruchomić aparatu.<br><br>" +
+      "Sprawdź, czy przeglądarka ma dostęp do aparatu."
+    );
+
+  });
+}
+
+
+function checkTicket(code) {
+
+  show("", "⏳ Sprawdzam bilet...");
+
+  fetch(
+    "TU_WKLEIMY_ADRES_APPS_SCRIPT?code=" +
+    encodeURIComponent(code)
+  )
+
+  .then(response => response.json())
+
+  .then(result => {
+
+    if (result.success) {
+
+      show(
+        "success",
+
+        "✅ WEJŚCIE POTWIERDZONE<br><br>" +
+
+        "<b>" + result.name + "</b><br><br>" +
+
+        "Pakiet: <b>" + result.pack + "</b><br>" +
+
+        "🍽️ Posiłek: <b>" + result.meals + "</b>"
+      );
+
+    }
+
+    else if (result.already) {
+
+      show(
+        "warning",
+
+        "⚠️ BILET JUŻ ZESKANOWANY<br><br>" +
+
+        "<b>" + result.name + "</b><br><br>" +
+
+        "Pakiet: " + result.pack + "<br>" +
+
+        "🍽️ Posiłek: " + result.meals
+      );
+
+    }
+
+    else {
+
+      show(
+        "error",
+        "❌ NIE ZNALEZIONO TAKIEGO BILETU"
+      );
+
+    }
+
+    setTimeout(function() {
+
+      processing = false;
+
+    }, 2000);
+
+  })
+
+  .catch(function(error) {
+
+    show(
+      "error",
+      "❌ Nie udało się połączyć z bazą uczestników."
+    );
+
+    processing = false;
+
+  });
+}
+
+
+function show(type, text) {
+
+  const result =
+    document.getElementById("result");
+
+  result.className = type;
+
+  result.innerHTML = text;
+}
+
+</script>
+
+</body>
+</html>
