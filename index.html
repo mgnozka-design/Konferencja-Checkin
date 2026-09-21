@@ -1,97 +1,131 @@
 <!DOCTYPE html>
 <html lang="pl">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>Check-in konferencji</title>
+<title>CHECK-IN</title>
 
-  <script src="https://unpkg.com/html5-qrcode"></script>
+<script src="https://unpkg.com/html5-qrcode"></script>
 
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f4f4f4;
-      margin: 0;
-      padding: 20px;
-    }
+<style>
+* {
+  box-sizing: border-box;
+}
 
-    .box {
-      max-width: 500px;
-      margin: auto;
-      background: white;
-      padding: 25px;
-      border-radius: 20px;
-      box-sizing: border-box;
-    }
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #f7f5f2;
+  color: #222;
+  text-align: center;
+}
 
-    h1 {
-      text-align: center;
-      margin-bottom: 10px;
-    }
+.container {
+  max-width: 520px;
+  margin: 0 auto;
+  padding: 25px 18px;
+}
 
-    #reader {
-      margin-top: 20px;
-      width: 100%;
-    }
+h1 {
+  margin: 10px 0 5px;
+  font-size: 34px;
+  letter-spacing: 2px;
+}
 
-    button {
-      width: 100%;
-      padding: 16px;
-      border: none;
-      border-radius: 12px;
-      background: #111;
-      color: white;
-      font-size: 18px;
-      margin-top: 15px;
-      cursor: pointer;
-    }
+.subtitle {
+  color: #777;
+  margin-bottom: 25px;
+}
 
-    button:disabled {
-      opacity: 0.5;
-    }
+button {
+  width: 100%;
+  padding: 18px;
+  border: none;
+  border-radius: 14px;
+  background: #222;
+  color: white;
+  font-size: 18px;
+  font-weight: bold;
+  cursor: pointer;
+  margin-bottom: 15px;
+}
 
-    #result {
-      margin-top: 20px;
-      padding: 20px;
-      border-radius: 15px;
-      text-align: center;
-      font-size: 20px;
-      line-height: 1.5;
-    }
+button:active {
+  transform: scale(.98);
+}
 
-    .success {
-      background: #d9f7df;
-      color: #176b2c;
-    }
+#reader {
+  width: 100%;
+  margin: 15px auto;
+  border-radius: 15px;
+  overflow: hidden;
+}
 
-    .error {
-      background: #ffdede;
-      color: #9b0000;
-    }
+#result {
+  margin-top: 20px;
+  padding: 22px;
+  border-radius: 16px;
+  background: white;
+  font-size: 18px;
+  line-height: 1.6;
+  min-height: 50px;
+}
 
-    .warning {
-      background: #fff0c7;
-      color: #8a5a00;
-    }
-  </style>
+.success {
+  border: 3px solid #39a852;
+}
+
+.warning {
+  border: 3px solid #e5a100;
+}
+
+.error {
+  border: 3px solid #d93025;
+}
+
+.hidden {
+  display: none;
+}
+
+input {
+  width: 100%;
+  padding: 16px;
+  border: 1px solid #ccc;
+  border-radius: 12px;
+  font-size: 18px;
+  margin-bottom: 10px;
+}
+</style>
 </head>
 
 <body>
 
-<div class="box">
+<div class="container">
 
-  <h1>🎟️ CHECK-IN</h1>
+  <h1>CHECK-IN</h1>
 
-  <p style="text-align:center;">
+  <div class="subtitle">
     Skanowanie biletu uczestnika
-  </p>
-
-  <div id="reader"></div>
+  </div>
 
   <button id="startButton" onclick="startScanner()">
     📷 URUCHOM SKANER
   </button>
+
+  <div id="reader" class="hidden"></div>
+
+  <div id="manual">
+    <input
+      id="manualCode"
+      type="text"
+      placeholder="Lub wpisz kod, np. VIP-001"
+    >
+
+    <button onclick="checkTicket(document.getElementById('manualCode').value)">
+      SPRAWDŹ BILET
+    </button>
+  </div>
 
   <div id="result"></div>
 
@@ -99,25 +133,38 @@
 
 <script>
 
+const API_URL =
+"https://script.google.com/macros/s/AKfycbyL-hz_wTHwNe0YM_tFgQmKu9RlG_kB4xyRB9SPkybCqQR2RvORgzeDNyDgQrwMmiCULg/exec";
+
 let scanner = null;
 let processing = false;
 
+
+/* =========================
+   URUCHOMIENIE SKANERA
+========================= */
+
 function startScanner() {
 
-  if (scanner) return;
+  if (processing) return;
 
+  const reader = document.getElementById("reader");
   const button = document.getElementById("startButton");
 
-  button.disabled = true;
-  button.innerText = "📷 URUCHAMIAM APARAT...";
+  reader.classList.remove("hidden");
+  button.style.display = "none";
 
   scanner = new Html5Qrcode("reader");
 
   scanner.start(
     { facingMode: "environment" },
+
     {
       fps: 10,
-      qrbox: 250
+      qrbox: {
+        width: 250,
+        height: 250
+      }
     },
 
     function(decodedText) {
@@ -126,38 +173,67 @@ function startScanner() {
 
       processing = true;
 
-      checkTicket(decodedText);
+      scanner.stop()
+        .then(function() {
+          reader.classList.add("hidden");
+          button.style.display = "block";
+          checkTicket(decodedText);
+        })
+        .catch(function() {
+          checkTicket(decodedText);
+        });
+
+    },
+
+    function(errorMessage) {
+      // ignorujemy błędy podczas wyszukiwania QR
     }
-  )
 
-  .then(function() {
+  ).catch(function(error) {
 
-    button.innerText = "📷 SKANER DZIAŁA";
-
-  })
-
-  .catch(function(error) {
-
-    scanner = null;
-
-    button.disabled = false;
-    button.innerText = "📷 URUCHOM SKANER";
+    reader.classList.add("hidden");
+    button.style.display = "block";
 
     show(
       "error",
       "❌ Nie udało się uruchomić aparatu.<br><br>" +
-      "Sprawdź, czy przeglądarka ma dostęp do aparatu."
+      "Sprawdź, czy Safari ma dostęp do kamery."
     );
 
+    processing = false;
   });
 }
 
 
+/* =========================
+   SPRAWDZENIE BILETU
+========================= */
+
 function checkTicket(code) {
 
-  show("", "⏳ Sprawdzam bilet...");
+  code = String(code || "").trim();
 
-  const callbackName = "qrCallback_" + Date.now();
+  if (!code) {
+
+    show(
+      "error",
+      "❌ Wpisz kod biletu."
+    );
+
+    processing = false;
+    return;
+  }
+
+  show(
+    "",
+    "⏳ Sprawdzam bilet..."
+  );
+
+  const callbackName =
+    "qrCallback_" + Date.now();
+
+  const script =
+    document.createElement("script");
 
   window[callbackName] = function(result) {
 
@@ -168,11 +244,25 @@ function checkTicket(code) {
 
         "✅ WEJŚCIE POTWIERDZONE<br><br>" +
 
-        "<b>" + result.name + "</b><br><br>" +
+        "<b>" +
+        escapeHtml(result.name) +
+        "</b><br><br>" +
 
-        "Pakiet: <b>" + result.pack + "</b><br>" +
+        "🎟️ Pakiet: <b>" +
+        escapeHtml(result.pack) +
+        "</b><br>" +
 
-        "🍽️ Posiłek: <b>" + result.meals + "</b>"
+        "🍽️ Posiłek: <b>" +
+        escapeHtml(result.meals) +
+        "</b><br>" +
+
+        "🎨 Opaska: <b>" +
+        escapeHtml(result.bandColor || "-") +
+        "</b><br>" +
+
+        "🕐 Godzina wejścia: <b>" +
+        escapeHtml(result.entryTime || "-") +
+        "</b>"
       );
 
     }
@@ -184,11 +274,24 @@ function checkTicket(code) {
 
         "⚠️ BILET JUŻ ZESKANOWANY<br><br>" +
 
-        "<b>" + result.name + "</b><br><br>" +
+        "<b>" +
+        escapeHtml(result.name) +
+        "</b><br><br>" +
 
-        "Pakiet: " + result.pack + "<br>" +
+        "🎟️ Pakiet: " +
+        escapeHtml(result.pack) +
+        "<br>" +
 
-        "🍽️ Posiłek: " + result.meals
+        "🍽️ Posiłek: " +
+        escapeHtml(result.meals) +
+        "<br>" +
+
+        "🎨 Opaska: " +
+        escapeHtml(result.bandColor || "-") +
+        "<br>" +
+
+        "🕐 Pierwsze wejście: " +
+        escapeHtml(result.entryTime || "-")
       );
 
     }
@@ -197,7 +300,9 @@ function checkTicket(code) {
 
       show(
         "error",
-        "❌ NIE ZNALEZIONO TAKIEGO BILETU"
+        "❌ NIE ZNALEZIONO TAKIEGO BILETU<br><br>" +
+        "Kod: " +
+        escapeHtml(code)
       );
 
     }
@@ -213,22 +318,22 @@ function checkTicket(code) {
 
     delete window[callbackName];
 
-    if (script && script.parentNode) {
+    if (script.parentNode) {
       script.parentNode.removeChild(script);
     }
 
     setTimeout(function() {
       processing = false;
-    }, 2000);
+    }, 1500);
   };
 
 
-  const script = document.createElement("script");
-
   script.src =
-    "https://script.google.com/macros/s/AKfycbyL-hz_wTHwNe0YM_tFgQmKu9RlG_kB4xyRB9SPkybCqQR2RvORgzeDNyDgQrwMmiCULg/exec" +
-    "?code=" + encodeURIComponent(code) +
-    "&callback=" + callbackName;
+    API_URL +
+    "?code=" +
+    encodeURIComponent(code) +
+    "&callback=" +
+    callbackName;
 
   script.onerror = function() {
 
@@ -246,9 +351,14 @@ function checkTicket(code) {
     processing = false;
   };
 
-  document.body.appendChild(script);}
-   
 
+  document.body.appendChild(script);
+}
+
+
+/* =========================
+   WYŚWIETLANIE WYNIKU
+========================= */
 
 function show(type, text) {
 
@@ -258,6 +368,21 @@ function show(type, text) {
   result.className = type;
 
   result.innerHTML = text;
+}
+
+
+/* =========================
+   BEZPIECZNE WYŚWIETLANIE TEKSTU
+========================= */
+
+function escapeHtml(text) {
+
+  return String(text ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }
 
 </script>
