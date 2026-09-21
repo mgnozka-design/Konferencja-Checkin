@@ -1,391 +1,211 @@
-<!DOCTYPE html>
-<html lang=" <pl">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+function doGet(e) {
 
-<title>CHECK-IN</title>
+  const code = e && e.parameter ? e.parameter.code : "";
+  const callback = e && e.parameter ? e.parameter.callback : "";
 
-<script src="https://unpkg.com/html5-qrcode"></script>
+  let result;
 
-<style>
-* {
-  box-sizing: border-box;
-}
-
-body {
-  margin: 0;
-  font-family: Arial, sans-serif;
-  background: #f7f5f2;
-  color: #222;
-  text-align: center;
-}
-
-.container {
-  max-width: 520px;
-  margin: 0 auto;
-  padding: 25px 18px;
-}
-
-h1 {
-  margin: 10px 0 5px;
-  font-size: 34px;
-  letter-spacing: 2px;
-}
-
-.subtitle {
-  color: #777;
-  margin-bottom: 25px;
-}
-
-button {
-  width: 100%;
-  padding: 18px;
-  border: none;
-  border-radius: 14px;
-  background: #222;
-  color: white;
-  font-size: 18px;
-  font-weight: bold;
-  cursor: pointer;
-  margin-bottom: 15px;
-}
-
-button:active {
-  transform: scale(.98);
-}
-
-#reader {
-  width: 100%;
-  margin: 15px auto;
-  border-radius: 15px;
-  overflow: hidden;
-}
-
-#result {
-  margin-top: 20px;
-  padding: 22px;
-  border-radius: 16px;
-  background: white;
-  font-size: 18px;
-  line-height: 1.6;
-  min-height: 50px;
-}
-
-.success {
-  border: 3px solid #39a852;
-}
-
-.warning {
-  border: 3px solid #e5a100;
-}
-
-.error {
-  border: 3px solid #d93025;
-}
-
-.hidden {
-  display: none;
-}
-
-input {
-  width: 100%;
-  padding: 16px;
-  border: 1px solid #ccc;
-  border-radius: 12px;
-  font-size: 18px;
-  margin-bottom: 10px;
-}
-</style>
-</head>
-
-<body>
-
-<div class="container">
-
-  <h1>CHECK-IN</h1>
-
-  <div class="subtitle">
-    Skanowanie biletu uczestnika
-  </div>
-
-  <button id="startButton" onclick="startScanner()">
-    📷 URUCHOM SKANER
-  </button>
-
-  <div id="reader" class="hidden"></div>
-
-  <div id="manual">
-    <input
-      id="manualCode"
-      type="text"
-      placeholder="Lub wpisz kod, np. VIP-001"
-    >
-
-    <button onclick="checkTicket(document.getElementById('manualCode').value)">
-      SPRAWDŹ BILET
-    </button>
-  </div>
-
-  <div id="result"></div>
-
-</div>
-
-<script>
-
-const API_URL =
-"https://script.google.com/macros/s/AKfycbyL-hz_wTHwNe0YM_tFgQmKu9RlG_kB4xyRB9SPkybCqQR2RvORgzeDNyDgQrwMmiCULg/exec";
-
-let scanner = null;
-let processing = false;
-
-
-/* =========================
-   URUCHOMIENIE SKANERA
-========================= */
-
-function startScanner() {
-
-  if (processing) return;
-
-  const reader = document.getElementById("reader");
-  const button = document.getElementById("startButton");
-
-  reader.classList.remove("hidden");
-  button.style.display = "none";
-
-  scanner = new Html5Qrcode("reader");
-
-  scanner.start(
-    { facingMode: "environment" },
-
-    {
-      fps: 10,
-      qrbox: {
-        width: 250,
-        height: 250
-      }
-    },
-
-    function(decodedText) {
-
-      if (processing) return;
-
-      processing = true;
-
-      scanner.stop()
-        .then(function() {
-          reader.classList.add("hidden");
-          button.style.display = "block";
-          checkTicket(decodedText);
-        })
-        .catch(function() {
-          checkTicket(decodedText);
-        });
-
-    },
-
-    function(errorMessage) {
-      // ignorujemy błędy podczas wyszukiwania QR
-    }
-
-  ).catch(function(error) {
-
-    reader.classList.add("hidden");
-    button.style.display = "block";
-
-    show(
-      "error",
-      "❌ Nie udało się uruchomić aparatu.<br><br>" +
-      "Sprawdź, czy Safari ma dostęp do kamery."
-    );
-
-    processing = false;
-  });
-}
-
-
-/* =========================
-   SPRAWDZENIE BILETU
-========================= */
-
-function checkTicket(code) {
-
-  code = String(code || "").trim();
-
-  if (!code) {
-
-    show(
-      "error",
-      "❌ Wpisz kod biletu."
-    );
-
-    processing = false;
-    return;
+  if (code) {
+    result = checkIn(code);
+  } else {
+    result = {
+      success: false,
+      error: "Brak kodu QR"
+    };
   }
 
-  show(
-    "",
-    "⏳ Sprawdzam bilet..."
-  );
+  const json = JSON.stringify(result);
 
-  const callbackName =
-    "qrCallback_" + Date.now();
+  // Obsługa JSONP dla skanera na GitHub Pages
+  if (callback) {
+    return ContentService
+      .createTextOutput(callback + "(" + json + ")")
+      .setMimeType(ContentService.MimeType.JAVASCRIPT);
+  }
 
-  const script =
-    document.createElement("script");
-
-  window[callbackName] = function(result) {
-
-    if (result.success) {
-
-      show(
-        "success",
-
-        "✅ WEJŚCIE POTWIERDZONE<br><br>" +
-
-        "<b>" +
-        escapeHtml(result.name) +
-        "</b><br><br>" +
-
-        "🎟️ Pakiet: <b>" +
-        escapeHtml(result.pack) +
-        "</b><br>" +
-
-        "🍽️ Posiłek: <b>" +
-        escapeHtml(result.meals) +
-        "</b><br>" +
-
-        "🎨 Opaska: <b>" +
-        escapeHtml(result.bandColor || "-") +
-        "</b><br>" +
-
-        "🕐 Godzina wejścia: <b>" +
-        escapeHtml(result.entryTime || "-") +
-        "</b>"
-      );
-
-    }
-
-    else if (result.already) {
-
-      show(
-        "warning",
-
-        "⚠️ BILET JUŻ ZESKANOWANY<br><br>" +
-
-        "<b>" +
-        escapeHtml(result.name) +
-        "</b><br><br>" +
-
-        "🎟️ Pakiet: " +
-        escapeHtml(result.pack) +
-        "<br>" +
-
-        "🍽️ Posiłek: " +
-        escapeHtml(result.meals) +
-        "<br>" +
-
-        "🎨 Opaska: " +
-        escapeHtml(result.bandColor || "-") +
-        "<br>" +
-
-        "🕐 Pierwsze wejście: " +
-        escapeHtml(result.entryTime || "-")
-      );
-
-    }
-
-    else if (result.notFound) {
-
-      show(
-        "error",
-        "❌ NIE ZNALEZIONO TAKIEGO BILETU<br><br>" +
-        "Kod: " +
-        escapeHtml(code)
-      );
-
-    }
-
-    else {
-
-      show(
-        "error",
-        "❌ Wystąpił błąd podczas sprawdzania biletu."
-      );
-
-    }
-
-    delete window[callbackName];
-
-    if (script.parentNode) {
-      script.parentNode.removeChild(script);
-    }
-
-    setTimeout(function() {
-      processing = false;
-    }, 1500);
-  };
-
-
-  script.src =
-    API_URL +
-    "?code=" +
-    encodeURIComponent(code) +
-    "&callback=" +
-    callbackName;
-
-  script.onerror = function() {
-
-    delete window[callbackName];
-
-    if (script.parentNode) {
-      script.parentNode.removeChild(script);
-    }
-
-    show(
-      "error",
-      "❌ Nie udało się połączyć z bazą uczestników."
-    );
-
-    processing = false;
-  };
-
-
-  document.body.appendChild(script);
+  return ContentService
+    .createTextOutput(json)
+    .setMimeType(ContentService.MimeType.JSON);
 }
 
 
-/* =========================
-   WYŚWIETLANIE WYNIKU
-========================= */
+function checkIn(code) {
 
-function show(type, text) {
+  const sheet = SpreadsheetApp
+    .getActiveSpreadsheet()
+    .getSheetByName("UCZESTNICY");
 
-  const result =
-    document.getElementById("result");
+  if (!sheet) {
+    return {
+      success: false,
+      error: "Nie znaleziono arkusza UCZESTNICY"
+    };
+  }
 
-  result.className = type;
+  const lock = LockService.getScriptLock();
 
-  result.innerHTML = text;
+  try {
+
+    lock.waitLock(10000);
+
+    const data = sheet.getDataRange().getValues();
+
+    code = String(code).trim().toLowerCase();
+
+    for (let i = 1; i < data.length; i++) {
+
+      // KOLUMNA B — KOD BILETU
+      const ticketCode = String(data[i][1])
+        .trim()
+        .toLowerCase();
+
+      if (ticketCode === code) {
+
+        // KOLUMNA D — IMIĘ I NAZWISKO
+        const name = data[i][3];
+
+        // KOLUMNA E — PAKIET
+        const pack = String(data[i][4]).trim();
+
+        // KOLUMNA F — STATUS WEJŚCIA
+        const status = String(data[i][5]).trim();
+
+        // KOLUMNA G — POSIŁEK
+        const meals = data[i][6];
+
+        // KOLOR OPASKI
+        let bandColor = "";
+
+        const packLower = pack.toLowerCase();
+
+        if (packLower.includes("jednodniowy")) {
+          bandColor = "CZERWONA";
+        }
+        else if (packLower.includes("silver")) {
+          bandColor = "ZIELONA";
+        }
+        else if (packLower.includes("gold")) {
+          bandColor = "ZŁOTA";
+        }
+        else if (packLower.includes("vip")) {
+          bandColor = "NIEBIESKA";
+        }
+        else if (packLower.includes("bankiet")) {
+          bandColor = "CZARNA";
+        }
+        else if (packLower.includes("platinum")) {
+          bandColor = "RÓŻOWA";
+        }
+
+
+        // ==========================================
+        // BILET JUŻ ZESKANOWANY
+        // ==========================================
+
+        if (status === "WESZŁA") {
+
+          const oldTime = data[i][7];
+
+          let formattedOldTime = "";
+
+          if (oldTime instanceof Date) {
+
+            formattedOldTime = Utilities.formatDate(
+              oldTime,
+              Session.getScriptTimeZone(),
+              "HH:mm"
+            );
+
+          } else {
+
+            formattedOldTime = String(oldTime || "");
+
+          }
+
+          return {
+
+            success: false,
+
+            already: true,
+
+            name: name,
+
+            pack: pack,
+
+            meals: meals,
+
+            bandColor: bandColor,
+
+            entryTime: formattedOldTime
+
+          };
+        }
+
+
+        // ==========================================
+        // NOWE WEJŚCIE
+        // ==========================================
+
+        const now = new Date();
+
+
+        // KOLUMNA F — STATUS
+        sheet
+          .getRange(i + 1, 6)
+          .setValue("WESZŁA");
+
+
+        // KOLUMNA H — CZAS
+        sheet
+          .getRange(i + 1, 8)
+          .setValue(now);
+
+
+        // KOLUMNA I — KOLOR OPASKI
+        sheet
+          .getRange(i + 1, 9)
+          .setValue(bandColor);
+
+
+        return {
+
+          success: true,
+
+          name: name,
+
+          pack: pack,
+
+          meals: meals,
+
+          bandColor: bandColor,
+
+          entryTime: Utilities.formatDate(
+            now,
+            Session.getScriptTimeZone(),
+            "HH:mm"
+          )
+
+        };
+      }
+    }
+
+
+    // ==========================================
+    // NIE ZNALEZIONO BILETU
+    // ==========================================
+
+    return {
+
+      success: false,
+
+      notFound: true
+
+    };
+
+
+  } finally {
+
+    lock.releaseLock();
+
+  }
 }
-
-
-/* =========================
-   BEZPIECZNE WYŚWIETLANIE TEKSTU
-========================= */
-
-function escapeHtml(text) {
-
-  return String(text ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-}
-
-</script>
-
-</body>
-</html>
