@@ -157,14 +157,9 @@ function checkTicket(code) {
 
   show("", "⏳ Sprawdzam bilet...");
 
-  fetch(
-  "https://script.google.com/macros/s/AKfycbyL-hz_wTHwNe0YM_tFgQmKu9RlG_kB4xyRB9SPkybCqQR2RvORgzeDNyDgQrwMmiCULg/exec?code=" +
-  encodeURIComponent(code)
-)
+  const callbackName = "qrCallback_" + Date.now();
 
-  .then(response => response.json())
-
-  .then(result => {
+  window[callbackName] = function(result) {
 
     if (result.success) {
 
@@ -182,6 +177,77 @@ function checkTicket(code) {
 
     }
 
+    else if (result.already) {
+
+      show(
+        "warning",
+
+        "⚠️ BILET JUŻ ZESKANOWANY<br><br>" +
+
+        "<b>" + result.name + "</b><br><br>" +
+
+        "Pakiet: " + result.pack + "<br>" +
+
+        "🍽️ Posiłek: " + result.meals
+      );
+
+    }
+
+    else if (result.notFound) {
+
+      show(
+        "error",
+        "❌ NIE ZNALEZIONO TAKIEGO BILETU"
+      );
+
+    }
+
+    else {
+
+      show(
+        "error",
+        "❌ Wystąpił błąd podczas sprawdzania biletu."
+      );
+
+    }
+
+    delete window[callbackName];
+
+    if (script && script.parentNode) {
+      script.parentNode.removeChild(script);
+    }
+
+    setTimeout(function() {
+      processing = false;
+    }, 2000);
+  };
+
+
+  const script = document.createElement("script");
+
+  script.src =
+    "https://script.google.com/macros/s/AKfycbyL-hz_wTHwNe0YM_tFgQmKu9RlG_kB4xyRB9SPkybCqQR2RvORgzeDNyDgQrwMmiCULg/exec" +
+    "?code=" + encodeURIComponent(code) +
+    "&callback=" + callbackName;
+
+  script.onerror = function() {
+
+    delete window[callbackName];
+
+    if (script.parentNode) {
+      script.parentNode.removeChild(script);
+    }
+
+    show(
+      "error",
+      "❌ Nie udało się połączyć z bazą uczestników."
+    );
+
+    processing = false;
+  };
+
+  document.body.appendChild(script);
+}
     else if (result.already) {
 
       show(
