@@ -246,52 +246,8 @@ function checkTicket(code) {
     processing = false;
   };
 
-  document.body.appendChild(script);
-}
-    else if (result.already) {
-
-      show(
-        "warning",
-
-        "⚠️ BILET JUŻ ZESKANOWANY<br><br>" +
-
-        "<b>" + result.name + "</b><br><br>" +
-
-        "Pakiet: " + result.pack + "<br>" +
-
-        "🍽️ Posiłek: " + result.meals
-      );
-
-    }
-
-    else {
-
-      show(
-        "error",
-        "❌ NIE ZNALEZIONO TAKIEGO BILETU"
-      );
-
-    }
-
-    setTimeout(function() {
-
-      processing = false;
-
-    }, 2000);
-
-  })
-
-  .catch(function(error) {
-
-    show(
-      "error",
-      "❌ Nie udało się połączyć z bazą uczestników."
-    );
-
-    processing = false;
-
-  });
-}
+  document.body.appendChild(script);}
+   
 
 
 function show(type, text) {
