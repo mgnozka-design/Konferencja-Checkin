@@ -158,9 +158,9 @@ function checkTicket(code) {
   show("", "⏳ Sprawdzam bilet...");
 
   fetch(
-    https://script.google.com/macros/s/AKfycbyL-hz_wTHwNe0YM_tFgQmKu9RlG_kB4xyRB9SPkybCqQR2RvORgzeDNyDgQrwMmiCULg/exec?code=" +
-    encodeURIComponent(code)
-  )
+  "https://script.google.com/macros/s/AKfycbyL-hz_wTHwNe0YM_tFgQmKu9RlG_kB4xyRB9SPkybCqQR2RvORgzeDNyDgQrwMmiCULg/exec?code=" +
+  encodeURIComponent(code)
+)
 
   .then(response => response.json())
 
